@@ -29,18 +29,21 @@ for pid, info in sorted_processes:
     if current_time < arrival:
         current_time = arrival
 
-    ct = current_time + burst
+    start_time = current_time
+    ct = start_time + burst
     tat = ct - arrival
     wt = tat - burst
+    rt = start_time - arrival  # Response time
 
     processes[pid]["completion_time"] = ct
     processes[pid]["turnaround_time"] = tat
     processes[pid]["waiting_time"] = wt
+    processes[pid]["response_time"] = rt
 
     execution_order.append(pid)
     current_time = ct
 
-# Print table
+# Print table (no start time column)
 table = []
 for pid, info in processes.items():
     table.append(
@@ -51,11 +54,16 @@ for pid, info in processes.items():
             info["completion_time"],
             info["turnaround_time"],
             info["waiting_time"],
+            info["response_time"],
         ]
     )
 
 print(
-    tabulate(table, headers=["PID", "AT", "BT", "CT", "TAT", "WT"], tablefmt="orgtbl")
+    tabulate(
+        table,
+        headers=["PID", "AT", "BT", "CT", "TAT", "WT", "RT"],
+        tablefmt="orgtbl",
+    )
 )
 
 print(
@@ -66,16 +74,18 @@ print(
     "Average Waiting Time:",
     sum(info["waiting_time"] for info in processes.values()) / len(processes),
 )
+print(
+    "Average Response Time:",
+    sum(info["response_time"] for info in processes.values()) / len(processes),
+)
 
 # Prepare Gantt chart data
 gantt_data = []
-current_time = 0
 for pid in execution_order:
     info = processes[pid]
-    start_time = max(current_time, info["arrival_time"])
-    end_time = start_time + info["burst_time"]
+    start_time = info["completion_time"] - info["burst_time"]
+    end_time = info["completion_time"]
     gantt_data.append((pid, start_time, end_time))
-    current_time = end_time
 
 # Plot both Ready Queue and Gantt Chart in one figure
 fig, (ax1, ax2) = plt.subplots(
