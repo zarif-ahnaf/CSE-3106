@@ -62,7 +62,7 @@ print(
     tabulate(
         table,
         headers=["PID", "AT", "BT", "CT", "TAT", "WT", "RT"],
-        tablefmt="orgtbl",
+        tablefmt="csv",
     )
 )
 
