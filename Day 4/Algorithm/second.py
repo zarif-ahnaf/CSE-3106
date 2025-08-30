@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 from copy import copy
-
+from tabulate import tabulate
 process_dict: list[dict[str, int]] = []
 
 # --- Read processes from file ---
@@ -53,6 +53,33 @@ while len(process_list) > 0:
 
     gantt_chart.append((min_process["id"], start_time, time_executed))
     process_list = [p for p in process_list if p["id"] != min_process["id"]]
+
+result_rows = []
+total_tat = 0
+total_wt = 0
+
+for p in process_dict:
+    pid = p["id"]
+    at = p["arrival_time"]
+    bt = p["burst_time"]
+    ct = final_table[pid]["completion_time"]
+    tat = final_table[pid]["turnaround_time"]
+    wt = final_table[pid]["waiting_time"]
+    rt = wt  # Non-preemptive → RT = WT
+
+    total_tat += tat
+    total_wt += wt
+
+    result_rows.append([pid, at, bt, ct, tat, wt, rt])
+
+# --- Print Table ---
+headers = ["PID", "AT", "BT", "CT", "TAT", "WT", "RT"]
+print(tabulate(result_rows, headers=headers, tablefmt="grid"))
+
+# --- Print Averages ---
+n = len(process_dict)
+print(f"\nAverage TAT = {total_tat / n:.2f}")
+print(f"Average WT  = {total_wt / n:.2f}")
 
 # --- Visualization ---
 fig, axes = plt.subplots(2, 1, figsize=(10, 6))
