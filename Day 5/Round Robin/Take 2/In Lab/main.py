@@ -95,118 +95,97 @@ def round_robin_scheduling(processes: List[Process], time_quantum: int) -> Sched
         'ready_queue': ready_queue_log
     }
 
-def visualize_scheduling_results(gantt_data: List[GanttEntry], ready_queue: List[QueueState]) -> None:
-    """
-    Visualize both ready queue and execution timeline in a single window with subplots.
-    """
+def visualize_gantt_chart(gantt_data: List[GanttEntry]) -> None:
+    """Visualize Gantt chart."""
     if not gantt_data:
-        print("No Gantt chart data to visualize.")
+        print("No Gantt chart data.")
         return
+
+    fig, gnt = plt.subplots(figsize=(14, 3))
+    max_time: int = max(end for _, _, end in gantt_data)
+    gnt.set_xlim(0, max_time + 1)
+    gnt.set_ylim(0, 10)
+    gnt.set_xlabel('Time')
+    gnt.set_yticks([])
+    gnt.set_title('Gantt Chart - Round Robin Scheduling', fontsize=14)
+    gnt.grid(True, axis='x', linestyle='--', alpha=0.6)
+
+    # Handle matplotlib cm compatibility
+    try:
+        cmap = plt.cm.tab20
+    except AttributeError:
+        cmap = plt.cm.get_cmap('tab20')
     
-    # Create a figure with two subplots (2 rows, 1 column)
-    fig, axes = plt.subplots(2, 1, figsize=(14, 8))
-    
-    # --- First subplot: Ready Queue visualization ---
-    # Extract all unique processes and their first arrival times
-    arrival_times = {}
-    for time, pids in ready_queue:
-        for pid in pids:
-            if pid not in arrival_times:
-                arrival_times[pid] = time
-    
-    # Sort processes by arrival time
-    sorted_processes = sorted(
-        [(pid, at) for pid, at in arrival_times.items()],
-        key=lambda x: x[1]
-    )
-    
-    # Handle processes with same arrival time by assigning different y positions
-    y_positions = []
-    y_counter = {}
-    for pid, at in sorted_processes:
-        if at not in y_counter:
-            y_counter[at] = 0
-        y_positions.append(y_counter[at])
-        y_counter[at] += 1
-    
-    # Draw ready queue bars
-    if sorted_processes:
-        axes[0].barh(
-            y_positions,
-            [0.1] * len(sorted_processes),  # Very narrow bars to represent arrival points
-            left=[at for _, at in sorted_processes],
-            height=0.4,
-            color='skyblue',
-            edgecolor='black',
-        )
-        
-        # Label each bar with process ID
-        for i, (pid, at) in enumerate(sorted_processes):
-            axes[0].text(at + 0.05, y_positions[i], f'P{pid}', va='center', ha='left')
-    
-    axes[0].set_title('Ready Queue (Process Arrivals)')
-    axes[0].set_xlabel('Time')
-    axes[0].set_yticks([])  # Hide y-axis ticks
-    axes[0].grid(axis='x', linestyle='--', alpha=0.7)
-    
-    # Set x-axis limits based on the data
-    if sorted_processes:
-        max_time = max(at for _, at in sorted_processes) + 2
-    else:
-        max_time = 10
-    axes[0].set_xlim(0, max_time)
-    
-    # --- Second subplot: Execution timeline ---
+    colors = cmap.colors if hasattr(cmap, 'colors') else cmap(range(20))
+
+    for pid, start, end in gantt_data:
+        color = colors[pid % len(colors)]
+        gnt.broken_barh([(start, end - start)], (2, 6), facecolors=color, edgecolor='black')
+        gnt.text((start + end) / 2, 5, f'P{pid}', ha='center', va='center',
+                 fontweight='bold', color='white')
+
+    plt.tight_layout()
+    plt.show()
+
+def visualize_execution_sequence(gantt_data: List[GanttEntry]) -> None:
+    """Visualize the execution sequence with colored boxes and time labels below."""
+    if not gantt_data:
+        print("No execution data to visualize.")
+        return
+
     # Get all unique time points
     time_points = sorted(set([t for entry in gantt_data for t in entry[1:]]))
     if not time_points:
-        plt.close()
         return
     
-    # Assign colors to processes
+    # Create a figure with proper dimensions
+    fig, ax = plt.subplots(figsize=(max(12, len(time_points) * 0.8), 2))
+    
+    # Set up the plot
+    ax.set_xlim(0, time_points[-1])
+    ax.set_ylim(0, 1)  # Only one row of boxes
+    ax.set_xticks(time_points)
+    ax.set_xticklabels([])
+    ax.set_yticks([])
+    
+    # Remove all default spines and grid
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+    
+    # Draw grid lines manually - only vertical lines and bottom horizontal
+    for t in time_points:
+        ax.axvline(x=t, color='black', linewidth=1.2)
+    
+    # Draw bottom horizontal line
+    ax.axhline(y=0, color='black', linewidth=1.2)
+    
+    # Assign colors to processes (same process = same color)
     process_colors = {}
     cmap = plt.cm.tab10
     for i, (pid, _, _) in enumerate(gantt_data):
         if pid not in process_colors:
             process_colors[pid] = cmap(i % 10)
     
-    # Draw colored process boxes
+    # Draw colored boxes for each process segment
     for pid, start, end in gantt_data:
         color = process_colors[pid]
-        axes[1].barh(
-            1, 
-            end - start, 
-            left=start, 
-            height=1, 
-            color=color, 
-            edgecolor='black',
-            linewidth=1.2
-        )
-        axes[1].text(
-            (start + end) / 2, 
-            1, 
-            f'P{pid}', 
-            ha='center', 
-            va='center', 
-            fontsize=12, 
-            fontweight='bold',
-            color='white' if color[0] + color[1] + color[2] < 1.5 else 'black'  # Contrast text color
-        )
-    
-    # Add vertical grid lines at time boundaries
-    for t in time_points:
-        axes[1].axvline(x=t, color='black', linestyle='-', alpha=0.3)
+        # Draw the box with color
+        ax.add_patch(plt.Rectangle((start, 0), end - start, 1, 
+                                 facecolor=color, edgecolor='black', linewidth=1.2))
+        
+        # Add process label
+        ax.text((start + end) / 2, 0.5, f'P{pid}', 
+               ha='center', va='center', fontsize=14, fontweight='bold', color='black')
     
     # Add time labels below the axis
     for t in time_points:
-        axes[1].text(t, -0.2, f"{int(t)}", ha='center', va='top', fontsize=10, fontweight='bold')
+        ax.text(t, -0.2, f"{int(t)}", ha='center', va='top', fontsize=10, fontweight='bold')
     
-    axes[1].set_title('Execution Timeline')
-    axes[1].set_xlabel('Time')
-    axes[1].set_yticks([])
-    axes[1].grid(axis='x', linestyle='--', alpha=0.7)
-    axes[1].set_xlim(0, time_points[-1])
+    # Set title
+    ax.set_title('Round Robin Execution Timeline', fontsize=14, pad=15)
     
+    # Add extra space below for time labels
+    plt.subplots_adjust(bottom=0.25)
     plt.tight_layout()
     plt.show()
 
@@ -272,12 +251,13 @@ def main() -> None:
     avg_tat: float = sum(p['tat'] for p in result['processes']) / len(result['processes'])
     avg_wt: float = sum(p['wt'] for p in result['processes']) / len(result['processes'])
 
-    print(tabulate(table_rows, headers=['PID', 'AT', 'BT', 'CT', 'TAT', 'WT'], tablefmt='fancy_grid'))
+    print(tabulate(table_rows, headers=['PID', 'AT', 'BT', 'CT', 'TAT', 'WT'], tablefmt='grid'))
     print(f"\n📊 Average Turnaround Time: {avg_tat:.2f}")
     print(f"📊 Average Waiting Time: {avg_wt:.2f}")
 
-    # Visualize everything in one window with subplots
-    visualize_scheduling_results(result['gantt_chart'], result['ready_queue'])
+    # Visualize
+    visualize_gantt_chart(result['gantt_chart'])
+    visualize_execution_sequence(result['gantt_chart'])
 
 if __name__ == "__main__":
     main()
