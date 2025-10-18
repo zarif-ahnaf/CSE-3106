@@ -9,8 +9,8 @@ console = Console()
 
 
 def lru_page_replacement(pages, frame_size):
-    frames = [] 
-    last_used = {}  
+    frames = []
+    last_used = {}
     fault_sequence = []
     frames_history = []
 
@@ -29,6 +29,7 @@ def lru_page_replacement(pages, frame_size):
             last_used[ref] = idx
         frames_history.append(frames.copy())
     return fault_sequence, frames_history
+
 
 def visualize_terminal(
     pages, frame_size, algorithm_name, fault_sequence, frames_history
@@ -164,8 +165,12 @@ def visualize_gui(pages, frame_size, algorithm_name, fault_sequence, frames_hist
 
 
 if __name__ == "__main__":
-    pages = [3,2,1,3,4,1,6,2,3,5]
-    frame_size = 3
+    pages = list(
+        map(
+            int, input("Enter the page reference string (space-separated): ").split(" ")
+        )
+    )
+    frame_size = int(input("Enter the number of frames: "))
 
     faults, history = lru_page_replacement(pages, frame_size)
     visualize_terminal(pages, frame_size, "LRU", faults, history)
